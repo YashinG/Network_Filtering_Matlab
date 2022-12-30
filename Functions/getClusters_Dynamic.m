@@ -31,25 +31,29 @@ function stOut = getClusters_Dynamic(inReturns, inDates, inTimeWts, inRollWindow
 %
 %   Other m-files required:
 %
-%     correlToDistMetric.m - to convert correlation matrix to a distance matrix
-%     QIS_Wtd.m - to use a weighted + QIS correlation matrix
+%       correlToDistMetric.m - to convert correlation matrix to a distance matrix
+%       QIS_Wtd.m - to use a weighted + QIS correlation matrix
+%       covMatWtd.m - weighted covariance matrix
+%       preProcessRets.m - standardise and remove market mode if required
+%       Matlab Statistics and Machine Learning Toolbox
 %
-%     The PMFG function uses "matlab_bgl" package from
-%     http://www.mathworks.com/matlabcentral/fileexchange/10922
-%     and
-%     http://www.stanford.edu/~Edgleich/programs/matlab_bgl/
-%     must be installed
+%       The 'pmfg' function from https://www.mathworks.com/matlabcentral/fileexchange/38689-pmfg
+%       must be saved to the file path.
+%
+%       The 'getFilteredNetwork' function uses "matlab_bgl" package from
+%       http://www.mathworks.com/matlabcentral/fileexchange/10922
+%       and http://www.stanford.edu/~Edgleich/programs/matlab_bgl/ must be installed
 %
 %
 %   Author: Yashin Gopi
-%   Date: 05-Jul-2022;
+%   Date: 11-Dec-2022;
 
 % sample size and matrix dimension
 [nDates, pAssets] = size(inReturns);
 
 % Check weight vector
 % If no weight vector then use equal weight over rolling window length
-if isempty(inTimeWts)||exist("inWts","var")
+if ~exist("inTimeWts","var")||isempty(inTimeWts)
     inTimeWts = ones(inRollWindow,1)./inRollWindow;
 end
 
@@ -72,7 +76,6 @@ if ~exist("inCompPartition","var")
 end
 
 
-
 % Find dates at which to re-calc
 %dateCount = 0;
 maxDateCount = 0;
@@ -87,7 +90,10 @@ dateIndex = flip(dateIndex);
 
 stOutRollClusters.Cluster      = nan(pAssets, maxDateCount);
 stOutRollClusters.nClusters    = nan(1, maxDateCount);
-stOutRollClusters.adjRandIndex = nan(size(inCompPartition, 1), maxDateCount);
+if ~isempty(inCompPartition)
+    nPartitions = size(inCompPartition,1);
+    stOutRollClusters.adjRandIndex = nan(nPartitions, maxDateCount);
+end
 
 figWaitbar = waitbar(0,'Running dynamic network filter...');
 
@@ -106,18 +112,33 @@ for iDate = 1:maxDateCount
     tempRets     = inReturns(dateIndex(iDate) - inRollWindow +1: dateIndex(iDate) , :);
 
     % Get filtered network at rolling date point
+    % Ignore ARI calc for now do it afterwards otherwise it will take too long
     % stOut = getClusters(inReturns, inTimeWts, inNames, inDistMethod, inLinkMethod, inBlnStdize, inBlnRemMktMode, inMaxClusters, inPlotID, in_nClusters, inCompPartition)
-    tempStOut = getClusters(tempRets, inTimeWts, inNames, inDistMethod, inLinkMethod, inBlnStdize, inBlnRemMktMode, inMaxClusters, 0, in_nClusters, inCompPartition);
-        
+    tempStOut = getClusters(tempRets, inTimeWts, inNames, inDistMethod, inLinkMethod, inBlnStdize, inBlnRemMktMode, inMaxClusters, 0, in_nClusters, []);
+           
     % Store data for roll period
     stOutRollClusters.inReturns{iDate}       = tempStOut.inputs.inReturns;
     stOutRollClusters.processedRets{iDate}   = tempStOut.inputs.processedRets;
 
     % Store results for roll period
-    stOutRollClusters.dates(iDate)        = tempDate; % Date
-    stOutRollClusters.clusterIDs(:,iDate) = tempStOut.clusterIDs;
-    stOutRollClusters.nClusters(1,iDate)  = max(tempStOut.clusterIDs);
-    
+    stOutRollClusters.dates(iDate)          = tempDate; % Date
+    stOutRollClusters.clusterIDs(:,iDate)   = tempStOut.clusterIDs;
+    stOutRollClusters.nClusters(1,iDate)    = max(tempStOut.clusterIDs);
+
+    % ARI calc
+    % Compare to user defined paritions (such as ICB/GICS) using Adj Rand Index
+    if exist("inCompPartition","var") && ~isempty(inCompPartition)
+        
+        temp_ARI = nan(nPartitions, 1);
+
+        for iPartition = 1:nPartitions
+            % Calclate ARI
+            temp_ARI(iPartition, 1) = RandIndex(tempStOut.clusterIDs', inCompPartition(iPartition,:));
+        end
+     
+        stOutRollClusters.adjRandIndex(:,iDate) = temp_ARI;
+    end
+        
     tempC = tempStOut.inputs.corrMat; % Correlation matrix
     % Distribution of correlations
     stOutRollClusters.correlDist(:,iDate) = histcounts((tempC(find(tril(ones(size(tempC)),-1)))),[-1:0.1:1],'Normalization','probability');
@@ -128,45 +149,75 @@ close(figWaitbar)
 
 % Plot if required
 if inPlotID == 1
+    figure
 
+if exist("inCompPartition","var") && ~isempty(inCompPartition)
+        tlt = tiledlayout(2, 1);
+
+        nexttile
+end
     % Plot n Clusters
-    plot(stOutRollClusters.nClusters)
+    f1 = stairs(stOutRollClusters.nClusters,'-o');
+    
+     % X-axis formatting
+    % ID End of year dates
+    [Y, M] = datevec(stOutRollClusters.dates,'dd-mmm-yyyy');
 
-    % X-axis formatting
-    xticks([1:maxDateCount]);
+    idEOY = [Y(2:end) - Y(1:end-1); 0];
+    xticks(find(idEOY));
+    xticklabels(datestr(stOutRollClusters.dates(find(idEOY)),'mmmyy'))
     xlim([1 maxDateCount]);
-    idEOY = contains((stOutRollClusters.dates),'Dec');
-
-    xLabels = stOutRollClusters.dates;
-    xLabels(~idEOY) = {''};
-    xticklabels(xLabels);
     xtickangle(90);
 
+    tmp_yLim = get(gca,'YLim');
+    set(gca,'YLim', [0 tmp_yLim(2)+1]);
+
+    set(gca,'box','off')
+    %grid on
+    set(gca,'YGrid','on')
+
+    ylabel('nClusters');
 
     if (inBlnStdize == 1)
-        titleStdized = 'Stdized';
+        titleStdized = ', Stdized';
     else
         titleStdized = '';
     end
 
     if (inBlnRemMktMode == 1)
-        titleMktMode = 'Market Mode Removed';
+        titleMktMode = ', Market Mode Removed';
     else
         titleMktMode = '';
     end
-
 
     if all(inTimeWts) == 1/inRollWindow
         titleTimeWts = '';
     else
         titleTimeWts = ' (Time Wtd)';
     end
-
-    title(['Dynamic Clustering: Number of Clusters']);
+    
+    title(['Dynamic Number of Clusters: ',inLinkMethod], 'Interpreter', 'none');
+    
     subtitle(['Distance: ', inDistMethod, titleTimeWts, ...
-        ', ',titleStdized,...
-        ', ',titleMktMode], 'Interpreter', 'none');
+        titleStdized,titleMktMode], 'Interpreter', 'none');
 
+    if exist("inCompPartition","var") && ~isempty(inCompPartition)
+        nexttile
+        f2 = plot(stOutRollClusters.adjRandIndex');
+        
+        xticks(find(idEOY));
+        xticklabels(datestr(stOutRollClusters.dates(find(idEOY)),'mmmyy'))
+        xlim([1 maxDateCount]);
+        xtickangle(90);
+        
+        set(gca,'box','off')
+        set(gca,'YGrid','on')
+        title(['ARI: ',inLinkMethod], 'Interpreter', 'none');
+        subtitle(['Distance: ', inDistMethod, titleTimeWts, ...
+            titleStdized,titleMktMode], 'Interpreter', 'none');
+
+        ylabel('ARI');
+    end
 end
 
 % Store results

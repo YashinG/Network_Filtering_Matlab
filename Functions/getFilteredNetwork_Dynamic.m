@@ -1,25 +1,25 @@
 function stOut = getFilteredNetwork_Dynamic(inReturns, inDates, inTimeWts, inRollWindow, inRollDateStep, inNames, inNetworkFilter, inBlnStdize, inBlnRemMktMode, inDistMethod, inPlotID)
-%getFilteredNetwork_Dynamic - Function to run the network filters through time
+% getFilteredNetwork_Dynamic - Function to run the network filters through time
 %
 %   Syntax:
-%       stOut = getFilteredNetwork_Dynamic(inReturns, inTimeWts, inRollWindow, inNames, inNetworkFilter, inBlnStdize, inBlnRemMktMode, inDistMethod, inSectors, inPlotID)
+%       stOut = getFilteredNetwork_Dynamic(inReturns, inDates, inTimeWts, inRollWindow, inRollDateStep, inNames, inNetworkFilter, inBlnStdize, inBlnRemMktMode, inDistMethod, inPlotID)
 %
 %
 %   Inputs:
-%       inReturns           = (n x p) matrix of stock returns
-%       inWts               = (n x 1) vector weight per observation
-%       inNames             = (1 x p) cell array of tickers/names of stocks
-%       inSectors           = (1 x p) cell array of sector names of stocks
-%       inDistMethod        = Distance method {'QIS_correlDistMetric','correlDistMetric','euclidean','cityblock',etc}
-%       inplot_ID           = (== 1) to plot the network
+%       inReturns           = (nDates x pAssets) matrix of stock returns
+%       inTimeWts           = (inRollWindow x 1) vector of weight per observation (leave empty for usual equal wts)
+%       inNames             = (1 x pAssets) cell array of tickers/names of stocks
+%       inNetworkFilter     = (String) Filter to be used on the network (== 'PMFG' or 'MST')
+%       inBlnStdize         = (== 1) to standardise/zscore the data (weighted)
+%       inBlnRemMktMode     = (== 1) to remove PCA market mode (weighted)
+%       inDistMethod        = (String) Distance method {'QIS_correlDistMetric','correlDistMetric','euclidean','cityblock',etc}
+%       inRollWindow        = (Scalar) # observations to be used in correlation estimation for each window
+%       inRollDateStep      = (Scalar) # observations to step forward through time
+%       inplotID            = Plot figures
 %
 %   Outputs:
-%       stOut        =  Structure containing all results
-%       stOut.S      = (p x p) Original similarity matrix
-%       stOut.D      = (p x p) Original distance matrix
-%       stOut.PMFG   = (p x p) PMFG matrix
-%       stOut.PMFG_D = (p x p) PMFG filtered distance matrix;
-%       stOut.PMFG_S = (p x p) PMFG filtered similarity matrix;
+%       stOut.dynamicNetwork  =  Structure containing all results
+%           .Data                 = (p x p) Original similarity matrix
 %
 %
 %
@@ -31,7 +31,7 @@ function stOut = getFilteredNetwork_Dynamic(inReturns, inDates, inTimeWts, inRol
 
 %
 %   Author: Yashin Gopi
-%   Date: 05-Jul-2022;
+%   Date: 11-Dec-2022;
 
 
 % sample size and matrix dimension
@@ -39,7 +39,7 @@ function stOut = getFilteredNetwork_Dynamic(inReturns, inDates, inTimeWts, inRol
 
 % Check weight vector
 % If no weight vector then use equal weight over rolling window length
-if isempty(inTimeWts)||exist("inWts","var")
+if ~exist("inTimeWts","var")||isempty(inTimeWts)
     inTimeWts = ones(inRollWindow,1)./inRollWindow;
 end
 
@@ -76,7 +76,7 @@ for iDate = 1:maxDateCount
     tempStOut = getFilteredNetwork(tempRets, inTimeWts, inNames, inNetworkFilter, inBlnStdize, inBlnRemMktMode, inDistMethod, 0);
 
     % Get graph metrics (length, centrality etc) using filtered distance matrix
-    tempStOut.metrics = networkMetrics(graph(tempStOut.filteredNetwork_D, inNames), 'Distance');
+    %tempStOut.metrics = networkMetrics(graph(tempStOut.filteredNetwork_D, inNames), 'Distance');
 
     % Store data for roll period
     stOutRollNetwork.Data{iDate}        = tempStOut.inputs.inReturns;
@@ -103,40 +103,37 @@ if inPlotID == 1
     plot(stOutRollNetwork.nTL)
 
     % X-axis formatting
-    xticks([1:maxDateCount]);
-    xlim([1 maxDateCount]);
-    idEOY = contains((stOutRollNetwork.dates),'Dec');
+    % ID End of year dates
+    [Y, M] = datevec(stOutRollNetwork.dates,'dd-mmm-yyyy');
 
-    xLabels = stOutRollNetwork.dates;
-    xLabels(~idEOY) = {''};
-    xticklabels(xLabels);
+    idEOY = [Y(2:end) - Y(1:end-1); 0];
+    xticks(find(idEOY));
+    xticklabels(datestr(stOutRollNetwork.dates(find(idEOY)),'mmmyy'))
+    xlim([1 maxDateCount]);
     xtickangle(90);
 
 
     if (inBlnStdize == 1)
-        titleStdized = 'Stdized';
+        titleStdized = ', Stdized';
     else
         titleStdized = '';
     end
 
     if (inBlnRemMktMode == 1)
-        titleMktMode = 'Market Mode Removed';
+        titleMktMode = ', Market Mode Removed';
     else
         titleMktMode = '';
     end
 
-
     if all(inTimeWts) == 1/inRollWindow
         titleTimeWts = '';
     else
-        titleTimeWts = '(Time Wtd)';
+        titleTimeWts = ' (Time Wtd)';
     end
-
 
     title(['Dynamic ' ,inNetworkFilter]);
     subtitle(['Distance: ', inDistMethod, titleTimeWts, ...
-        ', ',titleStdized,...
-        ', ',titleMktMode], 'Interpreter', 'none');
+        titleStdized,titleMktMode], 'Interpreter', 'none');
 
 end
 

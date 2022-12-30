@@ -6,50 +6,63 @@ function stOut = getClusters(inReturns, inTimeWts, inNames, inDistMethod, inLink
 %
 %   Inputs:
 %       inReturns           = (nDates x pAssets) matrix of stock returns
-%       inWts               = (nDates x 1) vector weight per observation
+%       inTimeWts           = (nDates x 1) vector weight per observation
 %       inNames             = (1 x pAssets) cell array of tickers/names of stocks
 %       inSectors           = (1 x pAssets) cell array of sector names of stocks
 %       inDistMethod        = Distance method {'QIS_correlDistMetric','correlDistMetric','euclidean','cityblock',etc}
 %       inLinkMethod        = Linkage method {'DBHT_PMFG', 'DBHT_TMFG','ward','single','complete','average'}
 %       inMaxClusters       = Maximum number of clusters to store data for in dendrogram
-%       inplot_ID           = Plot dendrogram
+%       inplotID            = Plot dendrogram
 %       in_nClusters        = Specific number of clusters to store data for.
 %                               Does not affect DBHT
 %       inCompPartition     = (nPart x pAssets) Other partitions (such as an ICB/GICS classification for stocks) to compare to clusters generated here
 %
 %   Outputs:
 %         stOut                         = Structure containing all results
-%         stOut.allClusters             = (pAssets x inMaxClusters-1) Clustering of stocks with original cluster numbers from 2 to max clusters;
-%         stOut.leafOrder               = (pAssets x 1) Index containing the ordering of stocks according to sorted dendrogram;
-%         stOut.clusters                = (pAssets x 1) Clustering of stocks with original cluster numbers for specified or DBHT number of clusters;
+%         stOut.Z                       = (pAssets-1 x 3) Encodes a tree containing the hierarchical clusters
+%         stOut.S                       = (pAssets x pAssets) Similarity matrix
+%         stOut.D                       = (pAssets x pAssets) Distance matrix
+%         stOut.leafOrder               = (pAssets x 1) Index containing the ordering of stocks according to the sorted dendrogram;
+%         stOut.labels                  = (pAssets x 1) Cell array containing the labels for the tree
+%         stOut.labelsOrdered           = (pAssets x 1) Cell array containing the sorted labels for the tree
+%         stOut.clusterIDs              = (pAssets x 1) Clustering of stocks with original cluster numbers for specified or DBHT number of clusters;
+%         stOut.clusterIDsOrdered       = (pAssets x 1) Original order of stocks but using re-ordered cluster numbers according to dendrogram, for specified or DBHT number of clusters; 
+%         stOut.allClusterIDs           = (pAssets x inMaxClusters-1) Clustering of stocks with original cluster numbers from 2 to max clusters;
+%         stOut.allClusterIDsOrdered    = (pAssets x inMaxClusters-1) Original order of stocks but using re-ordered cluster numbers, from 2 to max clusters;
 %         stOut.nClusters               = (Scalar) Either user defined input or the DBHT outcome;
-%         stOut.clustersOrdered         = (pAssets x 1) Original order of stocks but using re-ordered cluster numbers according to dendrogram, for specified or DBHT number of clusters; 
-%         stOut.allClustersOrdered      = (pAssets x inMaxClusters-1) Original order of stocks but using re-ordered cluster numbers, from 2 to max clusters;
+%         stOut.clusterIDsOrdered       = (nPart x inMaxClusters-1) Adj Rand Index (ARI) for partitions specified in 'inCompPartition' across variyng number of clusters
+%         stOut.stOutDBHT               = Structure containing detailed output from DBHT function
+%
 %         stOut.tables
-%               .allClustersOrdered     = Data table that combines labels and cluster allocations for 2:max clusters
-%               .clustersOrdered        = Data table that combines labels and cluster allocations for user defined number of clusters, or DBHT number of clusters
+%               .clusterIDsOrdered      = Data table that combines labels and cluster allocations for user defined number of clusters, or DBHT number of clusters
+%               .allClusterIDsOrdered   = Data table that combines labels and cluster allocations for 2:max clusters
+%               .ARI                    = Data table shows the ARI for the specified paritions for 2:max clusters
 %
 %   Other m-files required:
 %
-%     correlToDistMetric.m - to convert correlation matrix to a distance matrix
-%     QIS_Wtd.m - to use a weighted + QIS correlation matrix
+%       correlToDistMetric.m - to convert correlation matrix to a distance matrix
+%       QIS_Wtd.m - to use a weighted + QIS correlation matrix
+%       covMatWtd.m - weighted covariance matrix
+%       preProcessRets.m - standardise and remove market mode if required
+%       Matlab Statistics and Machine Learning Toolbox
 %
-%     The PMFG function uses "matlab_bgl" package from
-%     http://www.mathworks.com/matlabcentral/fileexchange/10922
-%     and
-%     http://www.stanford.edu/~Edgleich/programs/matlab_bgl/
-%     must be installed
+%       The 'pmfg' function from https://www.mathworks.com/matlabcentral/fileexchange/38689-pmfg
+%       must be saved to the file path.
+%
+%       The 'getFilteredNetwork' function uses "matlab_bgl" package from
+%       http://www.mathworks.com/matlabcentral/fileexchange/10922
+%       and http://www.stanford.edu/~Edgleich/programs/matlab_bgl/ must be installed
 %
 %
 %   Author: Yashin Gopi
-%   Date: 05-Jul-2022;
+%   Date: 11-Dec-2022;
 
 % sample size and matrix dimension
 [nDates, pAssets] = size(inReturns);
 
 % Check weight vector
 % If no weight vector then use equal weight
-if isempty(inTimeWts)||~exist("inWts","var")
+if ~exist("inTimeWts","var")||isempty(inTimeWts)
     inTimeWts = ones(nDates,1)./nDates;
 end
 
@@ -80,7 +93,7 @@ processedRets = preProcessRets(inReturns, inTimeWts, inBlnStdize, inBlnRemMktMod
 if strcmp(inDistMethod,'correlDistMetric')
     % Weighted correlation matrix
 
-    tempCov = CovMatWtd(processedRets, inTimeWts); % Covariance matrix
+    tempCov = covMatWtd(processedRets, inTimeWts); % Covariance matrix
     corrMat = corrcov(tempCov); % Matlab Stats Toolbox - convert to correl
 
     D = correlToDistMetric(corrMat); % Distance matrix
@@ -96,7 +109,7 @@ elseif strcmp(inDistMethod,'QIS_correlDistMetric')
     S = 2-0.5*(D.^2); % Associated Similarity matrix
 else
 
-    tempCov = CovMatWtd(processedRets, inTimeWts); % Covariance matrix
+    tempCov = covMatWtd(processedRets, inTimeWts); % Covariance matrix
     corrMat = corrcov(tempCov); % Matlab Stats Toolbox - convert to correl
 
     % Use Matlab distance method
@@ -230,7 +243,7 @@ if inPlotID == 1
         titleTimeWts = ' (Time Wtd)';
     end
 
-    title('Hierarchical Clustering');
+    title(['Hierarchical Clustering: ',inLinkMethod], 'Interpreter', 'none');
     subtitle(['Distance: ', inDistMethod, titleTimeWts, ...
         titleStdized,titleMktMode], 'Interpreter', 'none');
     
@@ -299,8 +312,8 @@ if exist('fig1','var')
 end
 
 % Store cluster allocations in tables
-stOut.tables.allClustersOrdered = array2table(stOut.allClusterIDsOrdered,'RowNames',stOut.labels,'VariableNames',strcat(string(2:inMaxClusters), ' Clusters'));
-stOut.tables.clustersOrdered = array2table(stOut.clusterIDsOrdered,'RowNames',stOut.labels,'VariableNames',strcat(string(stOut.nClusters), ' Clusters'));
+stOut.tables.allClusterIDsOrdered = array2table(stOut.allClusterIDsOrdered,'RowNames',stOut.labels,'VariableNames',strcat(string(2:inMaxClusters), ' Clusters'));
+stOut.tables.clusterIDsOrdered    = array2table(stOut.clusterIDsOrdered,'RowNames',stOut.labels,'VariableNames',strcat(string(stOut.nClusters), ' Clusters'));
 
 if exist("inCompPartition","var") && ~isempty(inCompPartition)
     stOut.tables.ARI = array2table(adjRandIndex,'RowNames',strcat('Partition_', string(1:nPartitions)),'VariableNames',strcat(string(2:inMaxClusters), ' Clusters'));

@@ -44,7 +44,7 @@ function stOut = getFilteredNetwork(inReturns, inTimeWts, inNames, inNetworkFilt
 %       and http://www.stanford.edu/~Edgleich/programs/matlab_bgl/ must be installed
 %
 %   Author: Yashin Gopi
-%   Date: 05-Jul-2022;
+%   Date: 11-Dec-2022;
 
 
 % sample size and matrix dimension
@@ -157,6 +157,8 @@ stOut.filteredNetwork_D(full(stOut.filteredNetwork ==0)) = 0;
 stOut.filteredNetwork_S = stOut.S;
 stOut.filteredNetwork_S(full(stOut.filteredNetwork ==0)) = 0;
 
+% Get graph metrics (length, centrality etc) using filtered distance matrix
+stOut.metrics = networkMetrics(graph(stOut.filteredNetwork_D, inNames), 'Distance');
 
 % Store all inputs for checking
 stOut.inputs.inReturns       = inReturns;

@@ -83,6 +83,7 @@ else
 end
 
 % Standardize returns again to use correlation as distance metric
+
 % Calculate weighted means and standard deviations
 wtdMu2 = inWts'*rets_2;
 wtdStd2 = std(rets_2, inWts);
