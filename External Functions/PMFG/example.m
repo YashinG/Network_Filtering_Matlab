@@ -7,7 +7,7 @@
 % Proceedings of the National Academy of Sciences of the United States 
 % of America (PNAS) 102 (2005) 10421-10426. 
 load('100Stocks.mat') 
-addpath('Z:\Yashin\Code Base\Matlab Toolboxes\External Toolboxes\matlab_bgl-4.0.1\matlab_bgl')
+addpath('C:\Network_Filtering_Matlab\External Functions\matlab_bgl-4.0.1\matlab_bgl')
 % -2-
 % computes the PMFG
 % "matlab_bgl" package from 
