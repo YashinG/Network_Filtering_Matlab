@@ -35,4 +35,4 @@ stOutNetworkFilter = getFilteredNetwork(stInputs.data.inReturns, stInputs.data.t
          stInputs.network.filter, stInputs.preProp.blnStdize, stInputs.preProp.blnRemMktMode,...
          stInputs.network.distanceMethod, stInputs.network.blnPlot);
 
-eval(['stOut_',stInputs.network.filter,'_', stInputs.network.distance_method,'= stOutNetworkFilter;']);
+eval(['stOut_',stInputs.network.filter,'_', stInputs.network.distanceMethod,'= stOutNetworkFilter;']);

@@ -4,7 +4,7 @@
 
 addpath('../Functions');
 addpath('../External Functions/PMFG')
-addpath('../External Functions/matlab_bgl-4.0.1')
+addpath('../External Functions/matlab_bgl-4.0.1/matlab_bgl')
 
 % Load data
 load('../Data/Data.mat')
@@ -20,7 +20,7 @@ stInputs.preProp.blnRemMktMode = 1;
 stInputs.preProp.EWMA_Alpha   = 0; % {0, 0.005}
 
 % Network inputs
-stInputs.network.distance_method = 'QIS_correlDistMetric';  % {'QIS_correlDistMetric','correlDistMetric'}
+stInputs.network.distanceMethod = 'QIS_correlDistMetric';  % {'QIS_correlDistMetric','correlDistMetric'}
 stInputs.network.filter          = 'MST';  % {'MST','PMFG'}
 stInputs.network.blnPlot         = 1;
 
@@ -39,5 +39,5 @@ stOutNetworkFilter_Dynamic = getFilteredNetwork_Dynamic(...
     stInputs.data.inReturns, stInputs.data.inDates, stInputs.data.timeWts,...
     stInputs.roll.window, stInputs.roll.step, stInputs.data.inNames,...
     stInputs.network.filter, stInputs.preProp.blnStdize, stInputs.preProp.blnRemMktMode,...
-    stInputs.network.distance_method, stInputs.network.blnPlot);
+    stInputs.network.distanceMethod, stInputs.network.blnPlot);
 

@@ -5,7 +5,7 @@
 addpath('../Functions');
 addpath('../External Functions');
 addpath('../External Functions/PMFG')
-addpath('../External Functions/matlab_bgl-4.0.1')
+addpath('../External Functions/matlab_bgl-4.0.1/matlab_bgl')
 
 % Load data
 load('../Data/Data.mat')

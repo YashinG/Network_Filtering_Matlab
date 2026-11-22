@@ -4,7 +4,7 @@
 
 addpath('../Functions');
 addpath('../External Functions/PMFG')
-addpath('../External Functions/matlab_bgl-4.0.1')
+addpath('../External Functions/matlab_bgl-4.0.1/matlab_bgl')
 
 % Load data
 load('../Data/Data.mat')
@@ -34,4 +34,4 @@ stOutBootstrapNetwork = bootstrapNetwork(stInputs.data.inReturns, stInputs.data.
         stInputs.preProp.blnRemMktMode, stInputs.network.filter, stInputs.network.distanceMethod,...
         stInputs.bootstrap.nSim, stInputs.network.blnPlot);
 
-eval(['stOut_',stInputs.network.filter,'_', stInputs.network.distance_method,'.boostrap = stOutBootstrapNetwork;']);
+eval(['stOut_',stInputs.network.filter,'_', stInputs.network.distanceMethod,'.bootstrap = stOutBootstrapNetwork;']);
