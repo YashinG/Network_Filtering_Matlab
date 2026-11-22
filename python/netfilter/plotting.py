@@ -120,7 +120,7 @@ def plot_histogram(x, title, subtitle, xlabel):
 # ----------------------------------------------------------------- multiplex
 _LAYER_COLOURS = {"pearson": "tab:blue", "kendall": "darkorange", "spearman": "darkgreen"}
 _ROLE_COLOURS = {"focused leaf": "orange", "focused hub": "steelblue",
-                 "multiplex leaf": "indianred", "multiplex hub": "forestgreen"}
+                 "multiplex leaf": "indianred", "multiplex hub": "forestgreen"}  # isolated nodes are not drawn
 
 
 def plot_multiplex_degree_distributions(layers):

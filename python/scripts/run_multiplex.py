@@ -1,7 +1,7 @@
-"""Multiplex analysis of Pearson / Spearman / Kendall filtered networks.
+"""Multiplex analysis of filtered networks.
 
-Follows the ngozzi/multiplex template: it builds one PMFG (or MST) per
-dependence measure from the same returns and then reports:
+Follows the ngozzi/multiplex template. It builds one network per layer from the
+same returns (by default Pearson, Spearman and Kendall PMFGs), and then reports:
  - the degree distribution of each layer
  - overlapping degree and the top nodes
  - the multiplex participation coefficient (MPC)
@@ -15,13 +15,48 @@ import _common  # noqa: F401
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
 
 import netfilter as nf
+from netfilter import Layer
 
 data = nf.load_data()
 
+
+# ---- Optional: your own layers -------------------------------------------
+# A layer can be a built-in measure name, a function of the returns, a matrix,
+# or a ready-made network. Built-ins: pearson, spearman, kendall, partial,
+# distance_correlation, lower_tail, upper_tail.
+def same_sector_network():
+    """Example 'ready-made' layer: link stocks in the same super-sector."""
+    G = nx.Graph()
+    for a, sa in zip(data["names"], data["super_sector_names"]):
+        for b, sb in zip(data["names"], data["super_sector_names"]):
+            if a < b and sa == sb:
+                G.add_edge(a, b)
+    return G
+
+
+def beta_similarity(rets, wts):
+    """Example custom measure: stocks with similar market betas are similar."""
+    mkt = rets @ np.full(rets.shape[1], 1 / rets.shape[1])
+    betas = np.array([np.cov(rets[:, i], mkt, aweights=wts)[0, 1] / np.cov(mkt, aweights=wts)
+                      for i in range(rets.shape[1])])
+    return -np.abs(betas[:, None] - betas[None, :])
+
+
+EXAMPLE_CUSTOM_LAYERS = [
+    "pearson",
+    Layer("tail", "lower_tail", params={"q": 0.1}),                    # built-in, with a parameter
+    Layer("dcor", "distance_correlation", network_filter="MST"),        # own filter for this layer
+    Layer("beta", beta_similarity, kind="similarity", raw_returns=True),  # your own function
+    Layer("sector", same_sector_network()),                             # network used as it is
+]
+# --------------------------------------------------------------------------
+
 inputs = dict(
-    measures=("pearson", "spearman", "kendall"),
+    layers=("pearson", "spearman", "kendall"),  # or EXAMPLE_CUSTOM_LAYERS
     network_filter="PMFG",                   # {'MST', 'PMFG'}
     standardise=True,
     remove_market_mode=True,
@@ -37,15 +72,17 @@ inputs = dict(
 time_wts, _ = nf.ewma_weights(data["rets"].shape[0], inputs["ewma_alpha"])
 sectors = dict(zip(data["names"], data["super_sector_names"]))
 
-mplex = nf.build_multiplex(data["rets"], time_wts, data["names"], inputs["measures"],
+mplex = nf.build_multiplex(data["rets"], time_wts, data["names"], inputs["layers"],
                            inputs["network_filter"], inputs["standardise"],
                            inputs["remove_market_mode"], inputs["shrinkage"])
 res = nf.multiplex_analysis(mplex["layers"], sectors, inputs["top"], inputs["mpc_threshold"],
                             inputs["overlap_threshold"], inputs["plot"])
 
 # ------------------------------------------------------------------ report
-print(f"{inputs['network_filter']} multiplex: {len(data['names'])} assets, "
-      f"layers {', '.join(inputs['measures'])}")
+print(f"Multiplex: {len(data['names'])} assets, "
+      f"layers {', '.join(mplex['layers'])}")
+if mplex["inputs"]["dropped_nodes"]:
+    print("Nodes dropped (not in the asset list):", mplex["inputs"]["dropped_nodes"])
 print("\n### MOST CONNECTED NODES ###\n", res["top_nodes"].to_string())
 carto = res["cartography"]
 print(f"\n### CARTOGRAPHY ### (hub if overlapping degree >= {carto.attrs['overlap_threshold']:.1f}, "

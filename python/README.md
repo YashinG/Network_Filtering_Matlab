@@ -67,35 +67,68 @@ Unlike the MATLAB scripts, these can be run from any folder.
 | `bootstrapNetwork` | `bootstrap_network` |
 | `bootstrapDBHT` | `bootstrap_dbht` |
 | `adj2pajek2` | `to_pajek` |
-| *(new)* | `build_multiplex`, `multiplex_analysis`, `multiplex.*` |
+| *(new)* | `build_multiplex`, `Layer`, `multiplex_analysis`, `multiplex.*` |
 
 Results come back as dictionaries with the same field names as the MATLAB output structs. For example, `out["metrics"]["node"]["hybrid"]["XpY"]` matches `stOut.metrics.node.Hybrid.XpY`, and `out["tables"]["ARI"]` is a pandas DataFrame.
 
 ## Multiplex analysis
 
-`netfilter.multiplex` builds a **multiplex dependency network**: one filtered network (PMFG or MST) for each of the Pearson, Spearman and Kendall correlations of the same assets. It then analyses the layers together. The analysis follows the template in [ngozzi/multiplex](https://github.com/ngozzi/multiplex) (Battiston, Nicosia & Latora).
+`netfilter.multiplex` builds a **multiplex network**: several networks (layers) on the same assets. It then analyses the layers together, following the template in [ngozzi/multiplex](https://github.com/ngozzi/multiplex) (Battiston, Nicosia & Latora). By default the layers are Pearson, Spearman and Kendall PMFGs, but each layer can be almost anything.
 
 ```python
 import netfilter as nf
+from netfilter import Layer
 
 data = nf.load_data()
-mplex = nf.build_multiplex(data["rets"], None, data["names"],
-                           measures=("pearson", "spearman", "kendall"), network_filter="PMFG",
-                           standardise=True, remove_market_mode=True, shrinkage=True)
-res = nf.multiplex_analysis(mplex["layers"], sectors=dict(zip(data["names"], data["super_sector_names"])),
-                            plot=True)
-res["cartography"]            # MPC, overlapping degree and role for each asset
-res["edge_overlap"]["jaccard"]
+sectors = dict(zip(data["names"], data["super_sector_names"]))
+
+# default: Pearson, Spearman and Kendall PMFGs
+mplex = nf.build_multiplex(data["rets"], None, data["names"])
+
+# or choose your own layers
+mplex = nf.build_multiplex(data["rets"], None, data["names"], layers=[
+    "pearson",                                                  # built-in measure
+    Layer("tail", "lower_tail", params={"q": 0.05}),            # built-in, with a parameter
+    Layer("dcor", "distance_correlation", network_filter="MST"),  # its own filter
+    Layer("beta", my_function, kind="similarity"),              # f(returns, weights) -> p x p
+    Layer("analyst", my_matrix, kind="distance"),               # numpy array or labelled DataFrame
+    Layer("supply_chain", my_graph),                            # networkx Graph, used as it is
+])
+res = nf.multiplex_analysis(mplex["layers"], sectors, plot=True)
 ```
 
-Or run `python scripts/run_multiplex.py`. It prints the results and saves the tables, figures and layer edge lists to `results/multiplex/`.
+Or run `python scripts/run_multiplex.py`. It prints the results and saves the tables, figures and layer edge lists to `results/multiplex/`. The script includes a worked example with custom layers (`EXAMPLE_CUSTOM_LAYERS`).
 
-**Building the layers.** Returns are pre-processed once, exactly as in `get_filtered_network`. Each measure then gives a correlation matrix, which is turned into a distance and a similarity and filtered:
-- **Pearson:** the weighted correlation, QIS-shrunk if `shrinkage=True`. This layer is the same network as `get_filtered_network`'s PMFG.
-- **Spearman:** the same estimator applied to each asset's ranks.
-- **Kendall:** a weighted Kendall tau-b, `kendall_tau_weighted`, in which each pair of dates gets weight `w_s · w_t`. With equal weights it equals `scipy.stats.kendalltau`, including with tied values. Shrinkage doesn't apply to Kendall.
+### Layers
 
-All three layers accept EWMA time weights.
+Returns are pre-processed once, exactly as in `get_filtered_network` (standardising, market-mode removal and time weights). Each layer is a `Layer(name, source, kind, network_filter, raw_returns, params)`. A plain string is short for a built-in measure.
+
+| `source` | What happens |
+|---|---|
+| a built-in name | the measure is computed from the processed returns |
+| a function `f(returns, weights, **params)` | it gets the processed returns (raw returns if `raw_returns=True`) and must return a p × p matrix |
+| a numpy array | a p × p matrix in the order of `names` |
+| a pandas DataFrame | a matrix labelled by asset name, in any order |
+| a networkx Graph | used as it is: nodes outside `names` are dropped and listed in `inputs["dropped_nodes"]`, and assets missing from the graph become unlinked nodes |
+
+`kind` says how to read a matrix. It is required for functions and matrices; built-ins set it themselves.
+- `"correlation"`: values in [-1, 1]. The distance is `sqrt(2(1 - x))` and the similarity `1 + x`.
+- `"similarity"`: larger means more strongly linked.
+- `"distance"`: smaller means more strongly linked.
+- `"adjacency"`: the matrix is already a network, and its non-zero entries are the edges.
+
+`network_filter` is `"PMFG"`, `"MST"` or `None` (no filtering) for each layer. If a layer doesn't set it, it uses the default from `build_multiplex`, and adjacency layers and graphs are never filtered. The MST and PMFG depend only on the order of the values, so a similarity and a distance that rank the pairs in the same order give the same network. A non-symmetric (directed) input keeps the stronger direction of each pair.
+
+**Built-in measures** (`netfilter.multiplex.BUILTIN_MEASURES`). All of them accept time weights.
+
+| Name | Kind | Measure |
+|---|---|---|
+| `pearson` | correlation | Pearson correlation, QIS-shrunk if `shrinkage=True`. This layer is the same network as `get_filtered_network`'s PMFG. |
+| `spearman` | correlation | the same estimator applied to each asset's ranks |
+| `kendall` | correlation | Kendall tau-b, with each pair of dates weighted by `w_s · w_t`. It matches `scipy.stats.kendalltau` with equal weights. |
+| `partial` | correlation | the partial correlation of each pair given all the other assets, from the (QIS-shrunk) precision matrix |
+| `distance_correlation` | similarity | distance correlation (Székely et al. 2007). It also picks up non-linear dependence, and it matches the `dcor` package with equal weights. |
+| `lower_tail` / `upper_tail` | similarity | how often two assets have their worst (or best) `q` share of days together; `params={"q": 0.1}` by default |
 
 **Measures** (`netfilter.multiplex`):
 
@@ -104,8 +137,8 @@ All three layers accept EWMA time weights.
 | `degree_table` | the degree in each layer, plus the overlapping degree `o_i = Σ_a k_i^a` |
 | `top_nodes` | the most connected assets per layer and overall |
 | `participation_coefficient` | the multiplex participation coefficient: 0 when all of an asset's links are in one layer, 1 when they are spread evenly |
-| `cartography` | focused or multiplex × hub or leaf |
-| `layer_similarity` | the share of assets active in both layers (the template's measure) |
+| `cartography` | focused or multiplex × hub or leaf (`isolated` for assets with no links in any layer) |
+| `layer_similarity` | the share of assets active in both layers (the template's measure; this is informative for supplied networks that don't link every asset) |
 | `edge_overlap` | the Jaccard overlap of edge sets, and how many layers each edge is in |
 | `sector_degrees` | the average degree per sector in each layer |
 | `write_layers` / `read_layers` | save or load layers as edge lists |
