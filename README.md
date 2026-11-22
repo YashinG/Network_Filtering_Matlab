@@ -12,6 +12,8 @@ The toolkit covers:
 - **Bootstrap reliability**: how stable network edges, network metrics and the DBHT cluster count are.
 - **Network metrics**: degree, closeness, betweenness, eigenvector and PageRank centrality, eccentricity and tree length, plus the hybrid centrality score of Pozzi, Di Matteo & Aste (2013).
 
+> **Python version:** a full Python port is in [`python/`](python/README.md). It gives the same results as this MATLAB code.
+
 ---
 
 ## Repository structure
