@@ -13,6 +13,8 @@ from .clustering import adjusted_rand_index, get_clusters, get_clusters_dynamic
 from .correlation import correlation_analysis, correlation_analysis_dynamic
 from .bootstrap import bootstrap_dbht, bootstrap_network
 from .io import load_data, to_pajek
+from . import multiplex
+from .multiplex import build_multiplex, multiplex_analysis
 
 __all__ = [
     "ewma_weights", "cov_weighted", "qis_weighted", "cov_to_corr", "corr_to_dist",
@@ -20,5 +22,5 @@ __all__ = [
     "network_metrics", "get_filtered_network", "get_filtered_network_dynamic", "dbht",
     "adjusted_rand_index", "get_clusters", "get_clusters_dynamic", "correlation_analysis",
     "correlation_analysis_dynamic", "bootstrap_network", "bootstrap_dbht", "load_data",
-    "to_pajek",
+    "to_pajek", "multiplex", "build_multiplex", "multiplex_analysis",
 ]

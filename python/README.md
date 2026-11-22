@@ -37,6 +37,7 @@ Alternatively, run one of the scripts, which mirror the MATLAB `Scripts/` folder
 | `scr_RunClustering_Dynamic.m` | `scripts/run_clustering_dynamic.py` |
 | `scr_RunBootstrapNetwork.m` | `scripts/run_bootstrap_network.py` |
 | `scr_RunBootstrapDBHT.m` | `scripts/run_bootstrap_dbht.py` |
+| *(new)* multiplex analysis | `scripts/run_multiplex.py` |
 
 ```bash
 python scripts/run_clustering.py
@@ -66,8 +67,57 @@ Unlike the MATLAB scripts, these can be run from any folder.
 | `bootstrapNetwork` | `bootstrap_network` |
 | `bootstrapDBHT` | `bootstrap_dbht` |
 | `adj2pajek2` | `to_pajek` |
+| *(new)* | `build_multiplex`, `multiplex_analysis`, `multiplex.*` |
 
 Results come back as dictionaries with the same field names as the MATLAB output structs. For example, `out["metrics"]["node"]["hybrid"]["XpY"]` matches `stOut.metrics.node.Hybrid.XpY`, and `out["tables"]["ARI"]` is a pandas DataFrame.
+
+## Multiplex analysis
+
+`netfilter.multiplex` builds a **multiplex dependency network**: one filtered network (PMFG or MST) for each of the Pearson, Spearman and Kendall correlations of the same assets. It then analyses the layers together. The analysis follows the template in [ngozzi/multiplex](https://github.com/ngozzi/multiplex) (Battiston, Nicosia & Latora).
+
+```python
+import netfilter as nf
+
+data = nf.load_data()
+mplex = nf.build_multiplex(data["rets"], None, data["names"],
+                           measures=("pearson", "spearman", "kendall"), network_filter="PMFG",
+                           standardise=True, remove_market_mode=True, shrinkage=True)
+res = nf.multiplex_analysis(mplex["layers"], sectors=dict(zip(data["names"], data["super_sector_names"])),
+                            plot=True)
+res["cartography"]            # MPC, overlapping degree and role for each asset
+res["edge_overlap"]["jaccard"]
+```
+
+Or run `python scripts/run_multiplex.py`. It prints the results and saves the tables, figures and layer edge lists to `results/multiplex/`.
+
+**Building the layers.** Returns are pre-processed once, exactly as in `get_filtered_network`. Each measure then gives a correlation matrix, which is turned into a distance and a similarity and filtered:
+- **Pearson:** the weighted correlation, QIS-shrunk if `shrinkage=True`. This layer is the same network as `get_filtered_network`'s PMFG.
+- **Spearman:** the same estimator applied to each asset's ranks.
+- **Kendall:** a weighted Kendall tau-b, `kendall_tau_weighted`, in which each pair of dates gets weight `w_s · w_t`. With equal weights it equals `scipy.stats.kendalltau`, including with tied values. Shrinkage doesn't apply to Kendall.
+
+All three layers accept EWMA time weights.
+
+**Measures** (`netfilter.multiplex`):
+
+| Function | What it computes |
+|---|---|
+| `degree_table` | the degree in each layer, plus the overlapping degree `o_i = Σ_a k_i^a` |
+| `top_nodes` | the most connected assets per layer and overall |
+| `participation_coefficient` | the multiplex participation coefficient: 0 when all of an asset's links are in one layer, 1 when they are spread evenly |
+| `cartography` | focused or multiplex × hub or leaf |
+| `layer_similarity` | the share of assets active in both layers (the template's measure) |
+| `edge_overlap` | the Jaccard overlap of edge sets, and how many layers each edge is in |
+| `sector_degrees` | the average degree per sector in each layer |
+| `write_layers` / `read_layers` | save or load layers as edge lists |
+
+The analysis functions take any `{name: networkx.Graph}` dict, so you can also use them on networks built elsewhere, such as the template's own edge lists.
+
+**Differences from the template:**
+- **Similarity:** PMFG and MST layers contain every asset, so the template's node-activity similarity is always 1. `edge_overlap` is added to compare the layers instead.
+- **Hub threshold:** the template used a fixed overlapping degree of 60, which suited its 343-stock data. The default here is the mean plus 2 standard deviations (`z > 2`, as in Battiston et al. 2014), and you can pass any number. With only 20 assets, no stock in `Data.mat` reaches that default, so every stock is classed as a multiplex leaf.
+- **Ties in `top_nodes`:** tied assets keep their table order. `tie_break="notebook"` reproduces the template's ordering exactly.
+
+On the template's own data, the package reproduces the notebook's printed top-10 lists, its layer similarities and its cartography counts. `tests/test_multiplex.py` checks this when `MULTIPLEX_TEMPLATE_DATA` points to that repo's `data/` folder.
 
 ## Differences from the MATLAB version
 
