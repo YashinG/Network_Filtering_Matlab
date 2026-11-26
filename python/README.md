@@ -166,6 +166,16 @@ On the template's own data, the package reproduces the notebook's printed top-10
 - **Ties in centrality ranks.** Values equal to 12 significant figures count as tied. MATLAB's `tiedrank` can split an exact tie on floating-point noise. On the sample MST this happens for one pair of stocks (9 and 11), whose hybrid scores swap by 0.004.
 - **Runtime.** A 10,000-sample PMFG bootstrap takes about 9 minutes for 20 stocks.
 
+### Implementation notes
+
+These choices are needed to match MATLAB exactly. Keep them when changing the code.
+- **PageRank.** MATLAB's algorithm is reproduced: start from uniform values and stop when the largest change is at most 1e-4, with at most 100 iterations. A fully converged PageRank differs from MATLAB by about 1.5e-4.
+- **PMFG edge order.** Edges are added in MATLAB's column-major `find` order with a stable sort, so ties are broken the same way.
+- **DBHT linkage.** DBHT builds merges cluster by cluster, so `matlab_to_scipy_linkage` re-sorts the rows stably by height and relabels them. This is safe because each merge is strictly higher than the merges below it.
+- **Distributions.** `ksdensity` uses MATLAB's default bandwidth, and `prctile` maps to numpy's `method="hazen"`.
+- **Multiplex filters.** The MST and PMFG depend only on the order of the values, so layer similarities and distances are shifted to be strictly positive (zeros mean "no edge" in the filter code). For a non-symmetric input, each pair keeps the stronger direction.
+- **Multiplex roles.** A node exactly on a threshold counts as hub or multiplex, and `on_boundary` flags it. A node with no links in any layer gets MPC = NaN and the role `isolated`.
+
 ## Verification against MATLAB
 
 The port was run side by side with the original MATLAB functions (R2025b) on `Data/Data.mat`. These all match to within about 1e-14:
@@ -197,3 +207,10 @@ pytest
 - Each DBHT linkage is valid and reproduces the DBHT clusters.
 - The centralities match networkx.
 - The adjusted Rand index matches a hand-worked example.
+
+## Possible extensions
+
+- A rolling-window multiplex: `build_multiplex` per window, tracking MPC, roles and edge overlap over time, following the `*_dynamic` pattern in `network.py`.
+- Weighted multiplex measures, such as a strength-based overlapping degree or a weighted participation coefficient.
+- Comparing DBHT clusters across layers, for example with the ARI between layers.
+- A `pyproject.toml` so `netfilter` can be installed with pip. It is currently imported via `sys.path`.
