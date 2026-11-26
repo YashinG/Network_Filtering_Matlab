@@ -1,6 +1,6 @@
 # MSc Network Filtering (MATLAB)
 
-MATLAB code for building **filtered correlation networks** and **hierarchical clusters** from stock market return data. It was developed as part of an MSc project.
+MATLAB code for building **filtered correlation networks** and **hierarchical clusters** from stock market return data. It was developed as part of an [MSc project](https://repository.up.ac.za/items/b176234c-1db9-4e0b-b31b-715cee1a56bf) at the University of Pretoria.
 
 The toolkit covers:
 
@@ -170,4 +170,4 @@ Each function has a full header comment describing its inputs and outputs. Run `
 
 ## Author
 
-Yashin Gopi
+Yashin Gopi. MSc thesis: [UPSpace repository](https://repository.up.ac.za/items/b176234c-1db9-4e0b-b31b-715cee1a56bf)
