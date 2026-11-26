@@ -75,6 +75,8 @@ Results come back as dictionaries with the same field names as the MATLAB output
 
 `netfilter.multiplex` builds a **multiplex network**: several networks (layers) on the same assets. It then analyses the layers together, following the template in [ngozzi/multiplex](https://github.com/ngozzi/multiplex) (Battiston, Nicosia & Latora). By default the layers are Pearson, Spearman and Kendall PMFGs, but each layer can be almost anything.
 
+The approach is inspired by *The multiplex dependency structure of financial markets*, N. Musumeci, V. Nicosia, T. Aste, T. Di Matteo, V. Latora (2016), https://arxiv.org/abs/1606.04872v1. The measures follow Battiston, Nicosia & Latora (2014, 2017); full references are in the [main README](../README.md#references).
+
 ```python
 import netfilter as nf
 from netfilter import Layer

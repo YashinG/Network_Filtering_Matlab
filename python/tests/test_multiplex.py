@@ -1,5 +1,9 @@
 """Tests for netfilter.multiplex.
 
+Inspired by: The multiplex dependency structure of financial markets,
+N. Musumeci, V. Nicosia, T. Aste, T. Di Matteo, V. Latora. Jun 15, 2016;
+https://arxiv.org/abs/1606.04872v1
+
 The template tests reproduce the results printed in the ngozzi/multiplex
 notebook. They need a local clone of that repo. Set MULTIPLEX_TEMPLATE_DATA
 to its ``data`` folder; otherwise they are skipped.

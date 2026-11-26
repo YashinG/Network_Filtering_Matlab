@@ -1,5 +1,9 @@
 """Multiplex networks of assets: one network per layer.
 
+Inspired by: The multiplex dependency structure of financial markets,
+N. Musumeci, V. Nicosia, T. Aste, T. Di Matteo, V. Latora. Jun 15, 2016;
+https://arxiv.org/abs/1606.04872v1
+
 Builds a multiplex in which every layer links the same assets. A layer can be
 a filtered network (PMFG or MST) of any dependence measure (Pearson, Spearman,
 Kendall, partial correlation, distance correlation, tail dependence, or your
@@ -17,6 +21,18 @@ used in the ngozzi/multiplex template (Battiston, Nicosia & Latora, 2014 and
 
 The analysis functions take a ``{layer_name: networkx.Graph}`` dict, so they
 also work on networks built elsewhere.
+
+References
+----------
+* Musumeci, N., Nicosia, V., Aste, T., Di Matteo, T. & Latora, V. (2016).
+  The multiplex dependency structure of financial markets.
+  https://arxiv.org/abs/1606.04872v1
+* Battiston, F., Nicosia, V. & Latora, V. (2014). Structural measures for
+  multiplex networks. Physical Review E, 89, 032804.
+* Battiston, F., Nicosia, V. & Latora, V. (2017). The new challenges of
+  multiplex networks: Measures and models. Eur. Phys. J. Special Topics, 226,
+  401-416.
+* ngozzi/multiplex: https://github.com/ngozzi/multiplex
 """
 
 from __future__ import annotations

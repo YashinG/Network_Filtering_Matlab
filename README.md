@@ -160,6 +160,15 @@ Each function has a full header comment describing its inputs and outputs. Run `
 - Ledoit, O. & Wolf, M. (2022). Quadratic shrinkage for large covariance matrices. *Bernoulli*, 28(3), 1519–1547.
 - Hubert, L. & Arabie, P. (1985). Comparing partitions. *Journal of Classification*, 2, 193–218.
 
+**MSc thesis**
+- Gopi, Y. MSc dissertation, University of Pretoria. UPSpace: https://repository.up.ac.za/items/b176234c-1db9-4e0b-b31b-715cee1a56bf
+
+**Multiplex analysis** (`python/netfilter/multiplex.py`)
+- Musumeci, N., Nicosia, V., Aste, T., Di Matteo, T. & Latora, V. (2016). The multiplex dependency structure of financial markets. arXiv:1606.04872. https://arxiv.org/abs/1606.04872v1 (the inspiration for the multiplex code)
+- Battiston, F., Nicosia, V. & Latora, V. (2014). Structural measures for multiplex networks. *Physical Review E*, 89, 032804.
+- Battiston, F., Nicosia, V. & Latora, V. (2017). The new challenges of multiplex networks: Measures and models. *The European Physical Journal Special Topics*, 226, 401–416.
+- ngozzi/multiplex: *Multiplex Dependency Structure of S&P500 Stocks* (the template notebooks). https://github.com/ngozzi/multiplex
+
 ## Third-party code
 
 - **PMFG**: T. Aste and co-authors. See `External Functions/PMFG/license.txt`.

@@ -1,5 +1,9 @@
 """Multiplex analysis of filtered networks.
 
+Inspired by: The multiplex dependency structure of financial markets,
+N. Musumeci, V. Nicosia, T. Aste, T. Di Matteo, V. Latora. Jun 15, 2016;
+https://arxiv.org/abs/1606.04872v1
+
 Follows the ngozzi/multiplex template. It builds one network per layer from the
 same returns (by default Pearson, Spearman and Kendall PMFGs), and then reports:
  - the degree distribution of each layer
